@@ -1,0 +1,7 @@
+{
+    "terminal.integrated.allowInUntrustedWorkspace": true,
+    "terminal.integrated.automationProfile.windows": {
+        
+    },
+    "terminal.integrated.shellArgs.windows": ["-ExecutionPolicy", "Bypass"]
+}
