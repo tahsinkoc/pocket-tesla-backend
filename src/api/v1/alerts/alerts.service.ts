@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { AlertRule, AlertRuleDocument, AlertType } from './schemas/alert-rule.schema';
 import { AlertEvent, AlertEventDocument } from './schemas/alert-event.schema';
 import { VehiclesService } from '../vehicles/vehicles.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 export interface CreateAlertRuleDto {
   vehicleId: string;
@@ -43,6 +44,7 @@ export class AlertsService {
     @InjectModel(AlertEvent.name)
     private alertEventModel: Model<AlertEventDocument>,
     private readonly vehiclesService: VehiclesService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   /**
@@ -58,7 +60,17 @@ export class AlertsService {
       enabled: dto.enabled ?? true,
     });
 
-    return alertRule.save();
+    const saved = await alertRule.save();
+
+    // Log alert rule creation (async, non-blocking)
+    this.auditLogsService.logAlertRuleCreated(
+      userId,
+      saved._id.toString(),
+      dto.type,
+      dto.vehicleId,
+    );
+
+    return saved;
   }
 
   /**
@@ -82,10 +94,22 @@ export class AlertsService {
    * Delete an alert rule
    */
   async deleteAlertRule(userId: string, alertRuleId: string): Promise<boolean> {
+    // Get the rule first to log it
+    const rule = await this.alertRuleModel.findById(alertRuleId).exec();
+
     const result = await this.alertRuleModel.deleteOne({
       _id: new Types.ObjectId(alertRuleId),
       userId: new Types.ObjectId(userId),
     }).exec();
+
+    if (result.deletedCount > 0 && rule) {
+      // Log alert rule deletion (async, non-blocking)
+      this.auditLogsService.logAlertRuleDeleted(
+        userId,
+        alertRuleId,
+        rule.type,
+      );
+    }
 
     return result.deletedCount > 0;
   }
@@ -129,7 +153,18 @@ export class AlertsService {
       value,
     });
 
-    return alertEvent.save();
+    const saved = await alertEvent.save();
+
+    // Log alert trigger (async, non-blocking)
+    this.auditLogsService.logAlertTriggered(
+      alertRule.userId.toString(),
+      alertRule._id.toString(),
+      alertRule.type,
+      alertRule.vehicleId,
+      value,
+    );
+
+    return saved;
   }
 
   /**
@@ -153,11 +188,8 @@ export class AlertsService {
 
   /**
    * Evaluate CHARGING_STOPPED alert
-   * Note: This requires tracking previous state - simplified for now
    */
   private evaluateChargingStopped(status: VehicleStatus): boolean {
-    // Check if was charging and now disconnected
-    // This is a simplified check - in production you'd track state transitions
     return status.charge_state?.charging_state === 'Disconnected';
   }
 
@@ -172,11 +204,9 @@ export class AlertsService {
 
     const lastEvent = await this.getLastAlertEvent(alertRule._id.toString());
     if (!lastEvent) {
-      // First time asleep - store the timestamp when we first noticed
       return true;
     }
 
-    // Check if asleep for longer than threshold
     // Note: triggeredAt is added by Mongoose timestamps
     const lastEventAny = lastEvent as any;
     const asleepDuration = Date.now() - lastEventAny.triggeredAt.getTime();
@@ -193,9 +223,7 @@ export class AlertsService {
     this.logger.log('Starting alert rule evaluation...');
 
     try {
-      // Get all enabled alert rules
       const alertRules = await this.alertRuleModel.find({ enabled: true }).exec();
-
       this.logger.log(`Evaluating ${alertRules.length} alert rules`);
 
       for (const alertRule of alertRules) {
@@ -219,7 +247,6 @@ export class AlertsService {
     const userId = alertRule.userId.toString();
 
     try {
-      // Get vehicle status via vehiclesService (NOT directly from Tesla API)
       const status = await this.vehiclesService.findOneById(alertRule.vehicleId);
 
       if (!status) {
@@ -227,7 +254,6 @@ export class AlertsService {
         return null;
       }
 
-      // Check deduplication window
       if (!this.shouldTriggerAlert(alertRule._id.toString())) {
         this.logger.debug(
           `Alert ${alertRule._id} suppressed (within 5-min window)`,
@@ -235,7 +261,6 @@ export class AlertsService {
         return false;
       }
 
-      // Evaluate based on alert type
       let shouldTrigger = false;
       let triggerValue = '';
 
@@ -268,7 +293,6 @@ export class AlertsService {
           break;
       }
 
-      // Create alert event if triggered
       if (shouldTrigger) {
         await this.createAlertEvent(alertRule, triggerValue);
         this.lastAlertTimes.set(alertRule._id.toString(), new Date());

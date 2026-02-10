@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Vehicle, VehicleDocument } from './schemas/vehicle.schema';
 import { TeslaApiService } from './tesla-api.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 @Injectable()
 export class VehiclesService {
@@ -11,6 +12,7 @@ export class VehiclesService {
     @InjectModel(Vehicle.name)
     private vehicleModel: Model<VehicleDocument>,
     private readonly teslaApiService: TeslaApiService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async findAllByUser(userId: string): Promise<any> {
@@ -62,37 +64,70 @@ export class VehiclesService {
     return this.vehicleModel.findByIdAndDelete(id).exec();
   }
 
-  async sendCommand(userId: string, vehicleId: string, command: string, params?: Record<any, any>): Promise<any> {
+  async sendCommand(
+    userId: string,
+    vehicleId: string,
+    command: string,
+    params?: Record<any, any>,
+  ): Promise<any> {
     const vehicle = await this.vehicleModel.findById(vehicleId).exec();
     if (!vehicle) {
       throw new HttpException('Vehicle not found', HttpStatus.NOT_FOUND);
     }
 
-    // Check vehicle state first
-    const vehicleData = await this.teslaApiService.getVehicleData(userId, vehicle.tesla_vehicle_id);
+    let success = false;
+    let resultData: any;
 
-    // Wake up if asleep
-    if (vehicleData.response?.state === 'asleep') {
-      await this.teslaApiService.wakeUpVehicle(userId, vehicle.tesla_vehicle_id);
-      // Wait 5 seconds for vehicle to wake up
-      await new Promise(resolve => setTimeout(resolve, 5000));
+    try {
+      // Check vehicle state first
+      const vehicleData = await this.teslaApiService.getVehicleData(userId, vehicle.tesla_vehicle_id);
+
+      // Wake up if asleep
+      if (vehicleData.response?.state === 'asleep') {
+        await this.teslaApiService.wakeUpVehicle(userId, vehicle.tesla_vehicle_id);
+        // Wait 5 seconds for vehicle to wake up
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+
+      // Send command based on type
+      let result;
+      switch (command) {
+        case 'set_charge_limit':
+          result = await this.teslaApiService.sendCommand(
+            userId,
+            vehicle.tesla_vehicle_id,
+            'set_charge_limit',
+            { percent: params?.percent || 80 },
+          );
+          break;
+        default:
+          result = await this.teslaApiService.sendCommand(
+            userId,
+            vehicle.tesla_vehicle_id,
+            command,
+            params,
+          );
+      }
+
+      resultData = result;
+      success = result?.response?.result === true;
+    } catch (error) {
+      success = false;
+      resultData = { error: error.message };
     }
 
-    // Send command based on type
-    let result;
-    switch (command) {
-      case 'set_charge_limit':
-        result = await this.teslaApiService.sendCommand(
-          userId,
-          vehicle.tesla_vehicle_id,
-          'set_charge_limit',
-          { percent: params?.percent || 80 },
-        );
-        break;
-      default:
-        result = await this.teslaApiService.sendCommand(userId, vehicle.tesla_vehicle_id, command, params);
+    // Log vehicle command (async, non-blocking)
+    this.auditLogsService.logVehicleCommand(
+      userId,
+      vehicle.tesla_vehicle_id,
+      command,
+      success,
+    );
+
+    if (!success && resultData?.error) {
+      throw new HttpException(resultData.error, HttpStatus.BAD_REQUEST);
     }
 
-    return result.response;
+    return resultData?.response;
   }
 }
