@@ -1,6 +1,10 @@
-# Pocket Tesla API - Proof of Concept
+# Pocket Tesla, Tesla API - PoC
 
-![Pocket Tesla Logo](pocket-tesla.png)
+
+<p align="center">
+  <img src="pocket-tesla.png" height="400" />
+</p>
+
 
 A NestJS v10 backend API for managing Tesla vehicles, alerts, and user authentication. This is a proof of concept that demonstrates integration with Tesla Fleet API, MongoDB for data storage, and comprehensive audit logging.
 
