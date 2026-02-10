@@ -15,6 +15,17 @@ import { Document } from 'mongoose';
         phone: string;
         @Prop({ required: true })
         fullname: string;
+        @Prop()
+        teslaState?: string;
+
+        @Prop()
+        teslaAccessToken?: string;
+
+        @Prop()
+        teslaRefreshToken?: string;
+
+        @Prop()
+        teslaTokenExpiresAt?: Date;
     }
     
 export const UserSchema = SchemaFactory.createForClass(User);
