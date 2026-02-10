@@ -9,7 +9,10 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuditLogsService, AuditLogQueryDto } from './audit-logs.service';
 import { AuditAction, EntityType } from './schemas/audit-log.schema';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 
+@ApiTags('Audit Logs')
+@ApiBearerAuth()
 @Controller('api/v1/audit-logs')
 @UseGuards(JwtAuthGuard)
 export class AuditLogsController {
@@ -28,6 +31,30 @@ export class AuditLogsController {
    * - endDate: Filter by end date (ISO 8601)
    */
   @Get()
+  @ApiOperation({
+    summary: 'Get audit logs',
+    description: 'Retrieves audit logs for the authenticated user with pagination and filtering',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (max: 100, default: 50)' })
+  @ApiQuery({ name: 'action', required: false, enum: AuditAction, description: 'Filter by action type' })
+  @ApiQuery({ name: 'entityType', required: false, enum: EntityType, description: 'Filter by entity type' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter by start date (ISO 8601)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'Filter by end date (ISO 8601)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Audit logs returned with pagination info',
+    schema: {
+      type: 'object',
+      properties: {
+        logs: { type: 'array', description: 'List of audit logs' },
+        total: { type: 'number', description: 'Total number of logs matching filter' },
+        page: { type: 'number', description: 'Current page' },
+        limit: { type: 'number', description: 'Items per page' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getAuditLogs(
     @Req() req,
     @Query('page') page?: string,
@@ -56,6 +83,13 @@ export class AuditLogsController {
    * GET /api/v1/audit-logs/entity/:entityType/:entityId
    */
   @Get('entity/:entityType/:entityId')
+  @ApiOperation({
+    summary: 'Get audit logs for entity',
+    description: 'Retrieves audit logs for a specific entity (vehicle, alert, etc.)',
+  })
+  @ApiQuery({ name: 'limit', required: false, description: 'Max logs to return (default: 50)' })
+  @ApiResponse({ status: 200, description: 'Entity audit logs returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getEntityLogs(
     @Req() req,
     @Query('entityType') entityType: EntityType,
