@@ -1,98 +1,207 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Pocket Tesla API - Proof of Concept
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS v10 backend API for managing Tesla vehicles, alerts, and user authentication. This is a proof of concept that demonstrates integration with Tesla Fleet API, MongoDB for data storage, and comprehensive audit logging.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+### Authentication
+- JWT-based authentication with 7-day token expiration
+- User registration with email, password, phone, and fullname
+- Tesla Account OAuth2 connection
+- Secure password hashing with bcrypt
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### Vehicle Management
+- List all Tesla vehicles associated with a user
+- Get detailed vehicle status and information
+- Send commands to vehicles (wake up, honk, flash, lock, unlock, set charge limit)
+- Automatic vehicle state tracking
 
-## Project setup
+### Alert System
+- Create custom alert rules for vehicles
+- Three alert types supported:
+  - LOW_BATTERY: Triggers when battery falls below threshold
+  - CHARGING_STOPPED: Triggers when charging is disconnected
+  - VEHICLE_ASLEEP_TOO_LONG: Triggers when vehicle is asleep for extended period
+- Background job checks alert rules every 5 minutes
+- Alert event history tracking
 
-```bash
-$ npm install
+### Audit Logging
+- Comprehensive logging of all user actions
+- Async, non-blocking logging (never affects user experience)
+- Logs include: user ID, action, entity type, entity ID, metadata, IP address, user agent
+- JWT-protected endpoint for viewing audit logs
+- Pagination and filtering support
+
+## API Endpoints
+
+### Authentication (Public)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /api/v1/auth/login | Authenticate with email and password |
+| POST | /api/v1/auth/register | Register a new user account |
+| GET | /api/v1/auth/tesla/connect | Initiate Tesla OAuth connection |
+| GET | /api/v1/auth/tesla/callback | Handle Tesla OAuth callback |
+
+### Vehicles (JWT Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/v1/vehicles | List all user vehicles |
+| GET | /api/v1/vehicles/:id/status | Get specific vehicle status |
+| POST | /api/v1/vehicles/:id/commands | Send command to vehicle |
+
+### Alerts (JWT Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /api/v1/alerts | Create a new alert rule |
+| GET | /api/v1/alerts | List all alert rules |
+| GET | /api/v1/alerts/events | List triggered alert events |
+| DELETE | /api/v1/alerts/:id | Delete an alert rule |
+
+### Audit Logs (JWT Required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/v1/audit-logs | List audit logs with filtering |
+| GET | /api/v1/audit-logs/entity/:entityType/:entityId | Get logs for specific entity |
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- MongoDB
+- Tesla Developer Account (for API access)
+
+### Environment Variables
+Create a .env file in the root directory:
+
+```
+MONGO_URI=mongodb://localhost:27017/pocket-tesla
+JWT_SECRET=your-jwt-secret-key
+TESLA_CLIENT_ID=your-tesla-client-id
+TESLA_CLIENT_SECRET=your-tesla-client-secret
+TESLA_REDIRECT_URI=http://localhost:3000/api/v1/auth/tesla/callback
+PORT=3000
 ```
 
-## Compile and run the project
-
+### Installation
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
-
+### Running the Application
 ```bash
-# unit tests
-$ npm run test
+# Development mode with hot reload
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Production mode
+npm run start:prod
 ```
 
-## Deployment
+## Swagger API Documentation
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The API is fully documented using OpenAPI/Swagger. Access the interactive documentation at:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+**http://localhost:3000/api**
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### Using Swagger UI
+1. Open http://localhost:3000/api in your browser
+2. Click on any endpoint to expand its details
+3. Click "Try it out" to test the endpoint
+4. For protected endpoints, first authorize using the JWT token:
+   - Click the "Authorize" button at the top right
+   - Enter your JWT token in the format: `Bearer <your-token>`
+   - Click Authorize
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Swagger Features
+- Interactive API exploration
+- Request/response schemas
+- Parameter documentation
+- Response codes and examples
+- JWT authentication integration
 
-## Resources
+## Architecture
 
-Check out a few resources that may come in handy when working with NestJS:
+### Module Structure
+- **AuthModule**: Handles authentication, JWT tokens, and Tesla OAuth
+- **UsersModule**: User management and data storage
+- **VehiclesModule**: Tesla vehicle integration and commands
+- **AlertsModule**: Alert rules and event processing
+- **AuditLogsModule**: Async audit logging (global module)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Technology Stack
+- NestJS v10
+- MongoDB with Mongoose
+- JWT Authentication
+- OpenAPI/Swagger
+- NestJS Schedule (cron jobs)
 
-## Support
+### Database Collections
+- users: User accounts and Tesla tokens
+- vehicles: User vehicle references
+- alertrules: Alert rule definitions
+- alertevents: Triggered alert history
+- auditlogs: User action audit trail
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Security Features
 
-## Stay in touch
+- Password hashing with bcrypt (14 rounds)
+- JWT tokens with 7-day expiration
+- All sensitive endpoints require JWT authentication
+- Audit logging for compliance and debugging
+- Input validation using class-validator
+- Non-blocking audit logging (never impacts user experience)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## API Capabilities
 
-## License
+### Tesla Integration
+This POC demonstrates the foundation for Tesla Fleet API integration:
+- OAuth2 authentication flow
+- Vehicle data retrieval
+- Vehicle command execution
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Alert Monitoring
+The alert system runs as a background job:
+- Checks all enabled alert rules every 5 minutes
+- Prevents duplicate alerts (5-minute window)
+- Supports multiple alert types
+- Tracks alert history
+
+### Audit Trail
+Every sensitive action is logged:
+- User login/logout
+- Tesla account connection/disconnection
+- Vehicle commands executed
+- Alert rule creation/deletion
+- Alert triggers
+
+Logs include:
+- User ID
+- Action performed
+- Entity type and ID
+- Metadata (command details, success status, etc.)
+- IP address
+- User agent
+- Timestamp
+
+## Project Status
+
+This is a proof of concept. The following features are implemented:
+- User authentication and registration
+- Tesla OAuth connection
+- Vehicle listing and status
+- Vehicle commands (basic)
+- Alert rules and events
+- Audit logging
+- Swagger documentation
+
+Potential enhancements for production:
+- Refresh token mechanism
+- Rate limiting
+- More vehicle command types
+- Alert notifications (email, push)
+- Admin user management
+- Enhanced error handling
+- Unit and e2e tests
