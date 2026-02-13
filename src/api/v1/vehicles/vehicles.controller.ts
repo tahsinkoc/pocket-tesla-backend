@@ -9,7 +9,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } 
 @Controller('api/v1/vehicles')
 @UseGuards(JwtAuthGuard)
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(private readonly vehiclesService: VehiclesService) { }
 
   /**
    * Get all vehicles for the authenticated user
@@ -35,12 +35,13 @@ export class VehiclesController {
     summary: 'Get vehicle status',
     description: 'Retrieves detailed status and information for a specific vehicle',
   })
-  @ApiParam({ name: 'id', description: 'Vehicle ID' })
+  @ApiParam({ name: 'id', description: 'Vehicle ID (Tesla vehicle ID or VIN)' })
   @ApiResponse({ status: 200, description: 'Vehicle status returned' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Vehicle not found' })
-  async getVehicleStatus(@Param('id') id: string) {
-    return this.vehiclesService.findOneById(id);
+  async getVehicleStatus(@Param('id') id: string, @Req() req) {
+    const userId = req.user.sub;
+    return this.vehiclesService.findOneById(userId, id);
   }
 
   /**

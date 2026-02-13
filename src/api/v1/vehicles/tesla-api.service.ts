@@ -6,7 +6,7 @@ import { UsersService } from '../users/user.service';
 
 @Injectable()
 export class TeslaApiService {
-  private readonly baseUrl = 'https://fleet-api.prd.na.vn.cloud.tesla.com';
+  private readonly baseUrl = 'https://fleet-api.prd.eu.vn.cloud.tesla.com';
   private client: any;
 
   constructor(

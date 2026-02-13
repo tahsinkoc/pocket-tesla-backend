@@ -45,7 +45,7 @@ export class AlertsService {
     private alertEventModel: Model<AlertEventDocument>,
     private readonly vehiclesService: VehiclesService,
     private readonly auditLogsService: AuditLogsService,
-  ) {}
+  ) { }
 
   /**
    * Create a new alert rule for a user
@@ -247,7 +247,7 @@ export class AlertsService {
     const userId = alertRule.userId.toString();
 
     try {
-      const status = await this.vehiclesService.findOneById(alertRule.vehicleId);
+      const status = await this.vehiclesService.findOneById(userId, alertRule.vehicleId);
 
       if (!status) {
         this.logger.warn(`Vehicle ${alertRule.vehicleId} not found`);
